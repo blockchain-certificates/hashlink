@@ -18,6 +18,7 @@ class MultihashSha2256 {
   constructor() {
     this.identifier = new Uint8Array([0x12, 0x20]);
     this.algorithm = 'mh-sha2-256';
+    this.name = 'sha2-256';
   }
 
   /**
@@ -39,6 +40,10 @@ class MultihashSha2256 {
 
     return mhsha2256;
   }
+
+  decode(input) {
+    return input.slice(this.identifier.length);
+  }
 }
 
 class MultihashBlake2b64 {
@@ -51,6 +56,7 @@ class MultihashBlake2b64 {
   constructor() {
     this.identifier = new Uint8Array([0xb2, 0x08, 0x08]);
     this.algorithm = 'mh-blake2b-64';
+    this.name = 'blake2b-64';
   }
 
   /**
@@ -71,6 +77,10 @@ class MultihashBlake2b64 {
 
     return mhblake2b64;
   }
+
+  decode(input) {
+    return input.slice(this.identifier.length);
+  }
 }
 
 class MultibaseBase58btc {
@@ -83,6 +93,7 @@ class MultibaseBase58btc {
   constructor() {
     this.identifier = new Uint8Array([0x7a]);
     this.algorithm = 'mb-base58-btc';
+    this.name = 'base58-btc';
   }
 
   /**

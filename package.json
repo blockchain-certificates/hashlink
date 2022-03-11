@@ -3,7 +3,7 @@
   "version": "0.12.2-0",
   "description": "Javascript Cryptographic Hyperlinks Library (hashlink)",
   "license": "BSD-3-Clause",
-  "main": "index.js",
+  "main": "Hashlink.js",
   "bin": {
     "hl": "./bin/hl"
   },
