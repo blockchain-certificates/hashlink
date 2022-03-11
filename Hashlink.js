@@ -23,19 +23,19 @@ export class Hashlink {
    * fetched, transformed, and encoded into a hashlink. If a data parameter
    * is provided, the hashlink is encoded from the data.
    *
-   * @param {object} options - The options for the encode operation.
+   * @param {Object} options - The options for the encode operation.
    * @param {Uint8Array} [options.data] - The data associated with the given
    *   URL. If provided, this data is used to encode the cryptographic hash.
    * @param {Array} options.codecs - One or more codecs that should be used
    *   to encode the data.
    * @param {Array} [options.urls] - One or more URLs that contain the data
    *   referred to by the hashlink.
-   * @param {object} [options.meta] - A set of key-value metadata that will be
+   * @param {Object} [options.meta] - A set of key-value metadata that will be
    *   encoded into the hashlink.
    *
    * @returns {Promise<string>} Resolves to a string that is a hashlink.
    */
-  async encode({data, urls, codecs, meta = {}}) {
+  async encode({data, urls, codecs= ['mh-sha2-256', 'mb-base58-btc'], meta = {}}) {
     // ensure data or urls are provided
     if(data === undefined && urls === undefined) {
       throw new Error('Either `data` or `urls` must be provided.');
@@ -108,22 +108,71 @@ export class Hashlink {
    * Decodes a hashlink resulting in an object with key-value pairs
    * representing the values encoded in the hashlink.
    *
-   * @param {object} options - The options for the encode operation.
+   * @param {Object} options - The options for the encode operation.
    * @param {string} options.hashlink - The encoded hashlink value to decode.
    *
-   * @returns {object} Returns an object with the decoded hashlink values.
+   * @returns {Object} Returns an object with the decoded hashlink values.
    */
-  decode({
-    /* eslint-disable-next-line no-unused-vars */
-    hashlink
-  }) {
-    throw new Error('Not implemented.');
+  async decode({hashlink}) {
+    const components = hashlink.split(':');
+    const decodedValue = {
+      hashName: 'unknown',
+      hashValue: 'unknown',
+      meta: {}
+    }
+
+    if(components.length < 2) {
+      throw new Error(`Hashlink "${hashlink}" is invalid; ` +
+        'it must contain at least one colon.');
+    }
+
+    if(components.length > 3) {
+      throw new Error(`Hashlink "${hashlink}" is invalid; ` +
+        'it contains more than two colons.');
+    }
+
+    // determine the base encoding decoder and decode the multihash value
+    const multibaseEncodedMultihash = stringToUint8Array(components[1]);
+    const multibaseDecoder = this._findDecoder(multibaseEncodedMultihash);
+    const encodedMultihash = multibaseDecoder.decode(multibaseEncodedMultihash);
+
+    // determine the multihash decoder
+    const multihashDecoder = this._findDecoder(encodedMultihash);
+
+    // decode the cryptographic hash name and value
+    const hashDecoder = this._findDecoder(encodedMultihash);
+    decodedValue.hashName = hashDecoder.name;
+    decodedValue.hashValue = await hashDecoder.decode(encodedMultihash);
+
+    // extract the metadata to discover extra codecs
+    const codecs = [];
+    if(components.length === 3) {
+      const encodedMeta = stringToUint8Array(components[2]);
+      const cborMeta = multibaseDecoder.decode(encodedMeta);
+      const meta = cbor.decode(cborMeta);
+
+      // extract metadata values
+      if(meta.has(0x0f)) {
+        decodedValue.meta.url = meta.get(0x0f);
+      }
+      if(meta.has(0x0e)) {
+        decodedValue.meta['content-type'] = meta.get(0x0e);
+      }
+      if(meta.has(0x0d)) {
+        decodedValue.meta.experimental = meta.get(0x0d);
+      }
+      if(meta.has(0x0c)) {
+        decodedValue.meta.transform = meta.get(0x0c);
+      }
+    }
+
+    return decodedValue;
   }
 
   /**
    * Verifies a hashlink resulting in a simple true or false value.
    *
-   * @param {object} options - The options for the encode operation.
+   * @param {Object} options - The options for the encode operation.
    * @param {string} options.hashlink - The encoded hashlink value to verify.
    * @param {string} options.data - The data to use for the hashlink.
    * @param {Array} options.resolvers - An array of Objects with key-value
@@ -131,14 +180,9 @@ export class Hashlink {
    *   Function({url, options}) that resolves any URL with the given scheme
    *   and options to data.
    *
-   * @returns {Promise<boolean>} Return true if the hashlink is valid, false
-   *   otherwise.
+   * @returns {Promise<boolean>} true if the hashlink is valid, false otherwise.
    */
-  async verify({
-    data, hashlink,
-    /* eslint-disable-next-line no-unused-vars */
-    resolvers
-  }) {
+  async verify({data, hashlink, resolvers}) {
     const components = hashlink.split(':');
 
     if(components.length > 3) {

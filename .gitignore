@@ -10,3 +10,4 @@ dist
 node_modules
 reports
 .nyc_output
+.idea
